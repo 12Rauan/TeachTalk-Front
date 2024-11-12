@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 import SimplePeer from 'simple-peer';
 
-const socket = io.connect('https://pretty-eggs-leave.loca.lt');
+const socket = io.connect('http://localhost:5000');
 
 const VideoCall = ({ userToCall, callerId }) => {
   const [stream, setStream] = useState(null);
