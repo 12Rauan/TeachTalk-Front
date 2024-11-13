@@ -38,6 +38,24 @@ const ChatList = () => {
     }
   };
 
+  const initiateAudioCall = (recipientUsername) => {
+    navigate('/call/audio', {
+        state: {
+            userToCall: recipientUsername,
+            callerId: user.username
+        }
+    });
+};
+
+const initiateVideoCall = (recipientUsername) => {
+    navigate('/call/video', {
+        state: {
+            userToCall: recipientUsername,
+            callerId: user.username
+        }
+    });
+};
+
   const filteredRooms = chatRooms.filter(room =>
     room.name.toLowerCase().includes(searchQuery.toLowerCase())
   );

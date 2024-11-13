@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, Video, X, PhoneOff } from 'lucide-react';
-import { useSocket } from '../context/SocketContext';
+import { useSocket } from '../contexts/SocketContext';
 import VideoCall from './VideoCall';
 import AudioCall from './AudioCall';
 
