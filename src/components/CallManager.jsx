@@ -1,134 +1,126 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, Video, X, PhoneOff } from 'lucide-react';
+import { useSocket } from '../context/SocketContext';
 import VideoCall from './VideoCall';
 import AudioCall from './AudioCall';
 
-const CallManager = ({ socket, username }) => {
+const CallManager = ({ username }) => {
+  const { socket, isConnected } = useSocket();
   const [activeCall, setActiveCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [callHistory, setCallHistory] = useState([]);
   const [callStatus, setCallStatus] = useState('idle');
-  
+
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !username || !isConnected) return;
 
     // Register user with socket server
     socket.emit('register_user', { username });
 
-    // Handle incoming calls
-    socket.on('incoming_call', (data) => {
+    // Socket event handlers
+    const handleIncomingCall = (data) => {
+      console.log('Incoming call:', data);
       setIncomingCall(data);
-    });
+    };
 
-    // Handle call accepted
-    socket.on('call_accepted', (data) => {
+    const handleCallAccepted = (data) => {
+      console.log('Call accepted:', data);
       setActiveCall({
         ...data,
         status: 'active'
       });
       setIncomingCall(null);
       setCallStatus('connected');
-    });
+    };
 
-    // Handle call rejected
-    socket.on('call_rejected', () => {
+    const handleCallRejected = () => {
+      console.log('Call rejected');
       setActiveCall(null);
       setIncomingCall(null);
       setCallStatus('rejected');
-    });
+    };
 
-    // Handle call ended
-    socket.on('call_ended', () => {
+    const handleCallEnded = () => {
+      console.log('Call ended');
       setActiveCall(null);
       setIncomingCall(null);
       setCallStatus('ended');
-    });
-
-    return () => {
-      socket.off('incoming_call');
-      socket.off('call_accepted');
-      socket.off('call_rejected');
-      socket.off('call_ended');
     };
-  }, [socket, username]);
+
+    // Register event listeners
+    socket.on('incoming_call', handleIncomingCall);
+    socket.on('call_accepted', handleCallAccepted);
+    socket.on('call_rejected', handleCallRejected);
+    socket.on('call_ended', handleCallEnded);
+
+    // Cleanup function
+    return () => {
+      socket.off('incoming_call', handleIncomingCall);
+      socket.off('call_accepted', handleCallAccepted);
+      socket.off('call_rejected', handleCallRejected);
+      socket.off('call_ended', handleCallEnded);
+    };
+  }, [socket, username, isConnected]);
 
   const initiateCall = async (callee, type = 'video') => {
-    const response = await socket.emit('initiate_call', {
-      caller: username,
-      callee,
-      type
-    });
-
-    if (response.error) {
-      console.error(response.error);
+    if (!socket || !isConnected) {
+      console.error('Socket not connected');
       return;
     }
 
-    setActiveCall({
-      room: response.room,
-      type,
-      status: 'calling',
-      peer: callee
+    console.log('Initiating call to:', callee);
+    socket.emit('initiate_call', {
+      caller: username,
+      callee,
+      type
+    }, (response) => {
+      if (response.error) {
+        console.error('Call initiation error:', response.error);
+        return;
+      }
+
+      setActiveCall({
+        room: response.room,
+        type,
+        status: 'calling',
+        peer: callee
+      });
+      setCallStatus('calling');
     });
-    setCallStatus('calling');
   };
 
   const acceptCall = () => {
-    if (!incomingCall) return;
+    if (!socket || !incomingCall) return;
     
+    console.log('Accepting call from:', incomingCall.caller);
     socket.emit('answer_call', {
       room: incomingCall.room,
       answer: true
     });
-    
-    // Add to call history
-    addToCallHistory({
-      type: incomingCall.type,
-      participant: incomingCall.caller,
-      direction: 'incoming',
-      status: 'accepted',
-      timestamp: new Date()
-    });
   };
 
   const rejectCall = () => {
-    if (!incomingCall) return;
+    if (!socket || !incomingCall) return;
     
+    console.log('Rejecting call from:', incomingCall.caller);
     socket.emit('answer_call', {
       room: incomingCall.room,
       answer: false
     });
-    
-    // Add to call history
-    addToCallHistory({
-      type: incomingCall.type,
-      participant: incomingCall.caller,
-      direction: 'incoming',
-      status: 'rejected',
-      timestamp: new Date()
-    });
   };
 
   const endCall = () => {
-    if (!activeCall) return;
+    if (!socket || !activeCall) return;
     
+    console.log('Ending call');
     socket.emit('end_call', {
       room: activeCall.room
     });
-    
-    // Add to call history
-    addToCallHistory({
-      type: activeCall.type,
-      participant: activeCall.peer,
-      direction: 'outgoing',
-      status: 'ended',
-      timestamp: new Date()
-    });
   };
 
-  const addToCallHistory = (callRecord) => {
-    setCallHistory(prev => [callRecord, ...prev].slice(0, 50)); // Keep last 50 calls
-  };
+  if (!isConnected) {
+    return null; // Or a loading/connection status indicator
+  }
 
   return (
     <div className="relative">
@@ -166,7 +158,7 @@ const CallManager = ({ socket, username }) => {
 
       {/* Incoming Call UI */}
       {incomingCall && !activeCall && (
-        <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-sm animate-slide-up">
+        <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-sm">
           <div className="flex items-center space-x-4">
             <div className="flex-1">
               <h3 className="font-semibold">Incoming {incomingCall.type} call</h3>
@@ -195,37 +187,6 @@ const CallManager = ({ socket, username }) => {
         <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-full animate-fade-out">
           {callStatus === 'rejected' && 'Call rejected'}
           {callStatus === 'ended' && 'Call ended'}
-        </div>
-      )}
-
-      {/* Call History (Optional) */}
-      {callHistory.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold mb-2">Recent Calls</h3>
-          <div className="space-y-2">
-            {callHistory.map((call, index) => (
-              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                <div>
-                  <span className="font-medium">{call.participant}</span>
-                  <span className="text-sm text-gray-500 ml-2">
-                    {call.direction === 'incoming' ? 'Incoming' : 'Outgoing'} {call.type} call
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">
-                    {new Date(call.timestamp).toLocaleTimeString()}
-                  </span>
-                  <span className={`text-sm ${
-                    call.status === 'accepted' ? 'text-green-500' :
-                    call.status === 'rejected' ? 'text-red-500' :
-                    'text-gray-500'
-                  }`}>
-                    {call.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>
