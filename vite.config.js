@@ -7,4 +7,5 @@ export default defineConfig({
   define: {
     global: {},  // Define global to fix the compatibility issue
   },
+  
 })

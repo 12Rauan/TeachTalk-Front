@@ -9,6 +9,7 @@ import AudioCall from './components/AudioCall';
 import VideoCall from './components/VideoCall';
 import TaskManager from './components/TaskManager'; // Import TaskManager component
 import ProtectedRoute from './components/ProtectedRoute';
+import CallManager from './components/CallManager';
 
 const App = () => {
     return (
@@ -47,6 +48,10 @@ const App = () => {
                     </ProtectedRoute>
                 } />
                 <Route path="/" element={<Navigate to="/register" />} />
+                <CallManager 
+        socket={yourSocketInstance} 
+        username={currentUser.username} 
+      />
             </Routes>
         </Router>
     );

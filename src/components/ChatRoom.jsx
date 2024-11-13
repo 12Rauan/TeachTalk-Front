@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import { Send } from 'lucide-react';
 
 import { api } from '../services/api';
@@ -13,41 +12,54 @@ const ChatRoom = () => {
   const user = JSON.parse(localStorage.getItem('user'));
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Join the room when the component mounts
-    api.joinRoom(id, user.username);
-  
-    // Listen for incoming messages
-    api.onMessage((message) => {
-      setMessages((prevMessages) => [...prevMessages, message]);
-    });
-  
-    // Load previous messages when joining the room
-    api.onPreviousMessages((prevMessages) => {
-      setMessages(prevMessages);
-    });
-  
-    // Scroll to bottom on new messages
-    scrollToBottom();
-  
-    return () => {
-      api.leaveRoom(id, user.username);
-      api.cleanup();
-    };
-  }, [id, user.username]);
-
+  // Function to scroll to the bottom of the chat
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    console.log('Joining room:', id);
+    api.joinRoom(id, user.username);
+  
+    const handleMessage = (message) => {
+      console.log('Received message:', message);
+      setMessages((prevMessages) => [...prevMessages, message]);
+    };
+  
+    const handlePreviousMessages = (prevMessages) => {
+      console.log('Loaded previous messages:', prevMessages);
+      setMessages(prevMessages);
+      scrollToBottom();
+    };
+  
+    api.onMessage(handleMessage);
+    api.onPreviousMessages(handlePreviousMessages);
+  
+    return () => {
+      console.log('Leaving room:', id);
+      api.leaveRoom(id, user.username);
+      // Remove listeners based on the actual API
+      if (api.off) {
+        api.off('message', handleMessage);
+        api.off('previousMessages', handlePreviousMessages);
+      }
+    };
+  }, [id, user.username]);
+  
+
+  useEffect(() => {
+    // Scroll to bottom whenever messages change
+    scrollToBottom();
+  }, [messages]);
+
   const handleSend = () => {
     if (!newMessage.trim()) return;
-  
+
     // Send the message using the api service
     api.sendMessage(id, user.username, newMessage);
     setNewMessage('');
   };
-  
+
   const handleLeaveRoom = () => {
     api.leaveRoom(id, user.username);
     navigate('/chats');
@@ -59,8 +71,6 @@ const ChatRoom = () => {
       handleSend();
     }
   };
-
- 
 
   return (
     <div className="flex h-full flex-col bg-gray-50">
@@ -98,7 +108,7 @@ const ChatRoom = () => {
                       isOwnMessage ? 'text-blue-100' : 'text-gray-500'
                     }`}
                   >
-                    {msg.timestamp} {/* Use the timestamp from the backend */}
+                    {msg.timestamp}
                   </p>
                 </div>
               </div>
