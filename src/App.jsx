@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SocketProvider } from './contexts/SocketContext';
@@ -12,19 +13,18 @@ import VideoCall from './components/VideoCall';
 import TaskManager from './components/TaskManager';
 import ProtectedRoute from './components/ProtectedRoute';
 import CallManager from './components/CallManager';
+import Subscription from './components/Subscription';
 
 const App = () => {
     const [currentUser, setCurrentUser] = useState(null);
 
     useEffect(() => {
-        // Load user from localStorage when the app starts
         const user = localStorage.getItem('user');
         if (user) {
             setCurrentUser(JSON.parse(user));
         }
     }, []);
 
-    // Listen for changes in localStorage
     useEffect(() => {
         const handleStorageChange = () => {
             const user = localStorage.getItem('user');
@@ -42,9 +42,8 @@ const App = () => {
     return (
         <Router>
             <SocketProvider>
-            <CallProvider>
+                <CallProvider>
                     <div className="h-screen">
-                        {/* CallManager will be rendered if user is logged in */}
                         {currentUser && (
                             <CallManager username={currentUser.username} />
                         )}
@@ -86,12 +85,22 @@ const App = () => {
                                     <TaskManager />
                                 </ProtectedRoute>
                             } />
+                            <Route path="/subscription" element={
+                                <ProtectedRoute>
+                                    <Subscription />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/card-registration" element={
+                                <ProtectedRoute>
+                                    <CardRegistration />
+                                </ProtectedRoute>
+                            } />
                             <Route path="/" element={
                                 currentUser ? <Navigate to="/chats" /> : <Navigate to="/register" />
                             } />
                         </Routes>
                     </div>
-                    </CallProvider>
+                </CallProvider>
             </SocketProvider>
         </Router>
     );
